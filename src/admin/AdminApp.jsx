@@ -8,6 +8,13 @@ import Habitaciones from './views/Habitaciones.jsx';
 import Paquetes from './views/Paquetes.jsx';
 import CheckIn from './views/CheckIn.jsx';
 import Configuracion from './views/Configuracion.jsx';
+import RestVender from '../restaurante/RestVender.jsx';
+import RestPanel from '../restaurante/RestPanel.jsx';
+import RestMenu from '../restaurante/RestMenu.jsx';
+import RestInventario from '../restaurante/RestInventario.jsx';
+import RestCajas from '../restaurante/RestCajas.jsx';
+import RestVentas from '../restaurante/RestVentas.jsx';
+import RestUsuarios from '../restaurante/RestUsuarios.jsx';
 import { usePersistentState } from '../hooks/usePersistentState.js';
 import { DEF_ROOMS, DEF_PKGS, DEF_STRUCT, DEF_CONFIG } from '../data/mockData.js';
 import { useAuth } from '../shared/hooks/useAuth.jsx';
@@ -109,6 +116,14 @@ export default function AdminApp({ onGoGuest }) {
         {tab === 'pkgs'  && <Paquetes pkgs={pkgs} setPkgs={setPkgs} onEdit={openPkgModal} onNew={() => openPkgModal(null)} />}
         {tab === 'chk'   && <CheckIn rooms={rooms} selResCode={selResCode} setSelResCode={setSelResCode} issued={issued} onStartCardFlow={startCardFlow} accent={config.accent} />}
         {tab === 'cfg'   && <Configuracion config={config} setConfig={setConfig} structure={structure} setStructure={setStructure} />}
+
+        {tab === 'rest-vender' && <RestVender onGo={setTab} />}
+        {tab === 'rest-panel'  && <RestPanel onGo={setTab} />}
+        {tab === 'rest-menu'   && <RestMenu />}
+        {tab === 'rest-inv'    && <RestInventario />}
+        {tab === 'rest-cajas'  && <RestCajas />}
+        {tab === 'rest-ventas' && <RestVentas />}
+        {tab === 'rest-users'  && <RestUsuarios />}
       </div>
 
       <RoomPackageModal
