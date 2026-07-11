@@ -71,6 +71,23 @@ const NAV_ITEMS = [
     icon: <><path d="M4 8h10M18 8h2M4 16h2M10 16h10" /><circle cx="16" cy="8" r="2.4" /><circle cx="8" cy="16" r="2.4" /></> },
 ];
 
+const REST_ITEMS = [
+  { key: 'rest-vender', label: 'Vender',
+    icon: <><circle cx="9" cy="20" r="1.4" /><circle cx="18" cy="20" r="1.4" /><path d="M2.5 3h2.2l2.1 12.2a1.5 1.5 0 0 0 1.5 1.3h8.7a1.5 1.5 0 0 0 1.5-1.2L21.5 7H6" /></> },
+  { key: 'rest-panel', label: 'Panel',
+    icon: <><path d="M4 13a8 8 0 0 1 16 0" /><path d="M12 13l4-4M4 13h16" /></> },
+  { key: 'rest-menu', label: 'Menú',
+    icon: <><path d="M4 3v18M4 8h6M7 3v5" /><path d="M17 3c-1.5 0-2.5 1.5-2.5 4S15.5 11 17 11s2.5-1.5 2.5-4S18.5 3 17 3zM17 11v10" /></> },
+  { key: 'rest-inv', label: 'Inventario',
+    icon: <><rect x="3.5" y="7" width="17" height="13" rx="2" /><path d="M3.5 11h17M8 7V4.5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2V7" /></> },
+  { key: 'rest-cajas', label: 'Cajas y cortes',
+    icon: <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 9h18M7 14h4" /><circle cx="16.5" cy="14" r="1.2" /></> },
+  { key: 'rest-ventas', label: 'Ventas',
+    icon: <><path d="M4 19V5M4 19h16M8 16v-4M12 16V8M16 16v-6" /></> },
+  { key: 'rest-users', label: 'Usuarios',
+    icon: <><circle cx="9" cy="8" r="3" /><path d="M4 20a5 5 0 0 1 10 0M16 5.5a3 3 0 0 1 0 5.6M15 20a5 5 0 0 0-1.5-3.6" /></> },
+];
+
 export default function Sidebar({ tab, onNavigate, onGoGuest, config, staffName, onSignOut }) {
   const monogram = initials(config?.name || 'Casa');
   const staffInitial = (staffName || 'R')[0].toUpperCase();
@@ -133,6 +150,34 @@ export default function Sidebar({ tab, onNavigate, onGoGuest, config, staffName,
               }}>{it.divider.toUpperCase()}</div>
             );
           }
+          const on = tab === it.key;
+          return (
+            <button
+              key={it.key}
+              onClick={() => onNavigate(it.key)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 11,
+                padding: '10px 12px', border: 'none', borderRadius: 11,
+                background: on ? 'var(--ac, #B8552F)' : 'transparent',
+                color: on ? '#FBF6EA' : 'rgba(239,230,210,.78)',
+                fontFamily: 'Karla, sans-serif', fontSize: 13.5, fontWeight: 700,
+                cursor: 'pointer', textAlign: 'left',
+                transition: 'background .15s ease',
+              }}
+              onMouseEnter={(e) => { if (!on) e.currentTarget.style.background = 'rgba(239,230,210,.06)'; }}
+              onMouseLeave={(e) => { if (!on) e.currentTarget.style.background = 'transparent'; }}
+            >
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">{it.icon}</svg>
+              {it.label}
+            </button>
+          );
+        })}
+
+        <div style={{
+          fontSize: 9.5, fontWeight: 700, letterSpacing: 1.6, color: '#C99B4E',
+          padding: '14px 12px 4px',
+        }}>LA PARADITA · RESTAURANTE</div>
+        {REST_ITEMS.map((it) => {
           const on = tab === it.key;
           return (
             <button

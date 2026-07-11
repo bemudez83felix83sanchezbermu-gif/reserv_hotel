@@ -33,6 +33,13 @@ import Staff from './views/Staff.jsx';
 import CierreContable from './views/CierreContable.jsx';
 import Notificaciones from './views/Notificaciones.jsx';
 import Auditoria from './views/Auditoria.jsx';
+import RestVender from '../restaurante/RestVender.jsx';
+import RestPanel from '../restaurante/RestPanel.jsx';
+import RestMenu from '../restaurante/RestMenu.jsx';
+import RestInventario from '../restaurante/RestInventario.jsx';
+import RestCajas from '../restaurante/RestCajas.jsx';
+import RestVentas from '../restaurante/RestVentas.jsx';
+import RestUsuarios from '../restaurante/RestUsuarios.jsx';
 import { useAuth } from '../shared/hooks/useAuth.jsx';
 import { useConfig } from '../shared/hooks/useConfig.jsx';
 import { usePackages } from '../shared/hooks/usePackages.jsx';
@@ -204,6 +211,14 @@ export default function AdminApp({ onGoGuest }) {
         {tab === 'notifs' && <Notificaciones />}
         {tab === 'audit' && <Auditoria />}
         {tab === 'cfg'   && <Configuracion />}
+
+        {tab === 'rest-vender' && <RestVender onGo={setTab} />}
+        {tab === 'rest-panel'  && <RestPanel onGo={setTab} />}
+        {tab === 'rest-menu'   && <RestMenu />}
+        {tab === 'rest-inv'    && <RestInventario />}
+        {tab === 'rest-cajas'  && <RestCajas />}
+        {tab === 'rest-ventas' && <RestVentas />}
+        {tab === 'rest-users'  && <RestUsuarios />}
       </div>
 
       <RoomPackageModal
