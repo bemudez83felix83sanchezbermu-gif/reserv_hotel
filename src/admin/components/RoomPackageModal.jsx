@@ -1,5 +1,5 @@
-import ImageSlot from './ImageSlot.jsx';
-import { AMEN_CATALOG } from '../data/mockData.js';
+import ImageSlot from '../../shared/ui/ImageSlot.jsx';
+import { AMEN_CATALOG } from '../../data/mockData.js';
 
 const INPUT = {
   width: '100%', boxSizing: 'border-box', padding: '11px 13px',

@@ -1,4 +1,4 @@
-import { fmt } from '../utils/helpers.js';
+import { fmt } from '../../shared/utils/helpers.js';
 
 export default function Paquetes({ pkgs, setPkgs, onEdit, onNew }) {
   const toggleActive = (id) =>

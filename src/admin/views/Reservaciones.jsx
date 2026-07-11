@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
-import { RESERVATIONS, TODAY_ISO, GUEST_POOL } from '../data/mockData.js';
-import { STATE_COLORS, dAbsOf, fmtAbs, roomsOf, roomLabel } from '../utils/helpers.js';
+import { RESERVATIONS, TODAY_ISO, GUEST_POOL } from '../../data/mockData.js';
+import { STATE_COLORS, dAbsOf, fmtAbs, roomsOf, roomLabel } from '../../shared/utils/helpers.js';
 
 const CARD = { background: '#FFFDF7', border: '1px solid #EDE3CF', borderRadius: 18 };
 const CHART_WDS = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];

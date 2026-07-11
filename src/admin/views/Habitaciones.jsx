@@ -1,5 +1,5 @@
-import ImageSlot from '../components/ImageSlot.jsx';
-import { fmt } from '../utils/helpers.js';
+import ImageSlot from '../../shared/ui/ImageSlot.jsx';
+import { fmt } from '../../shared/utils/helpers.js';
 
 export default function Habitaciones({ rooms, setRooms, onEdit, onNew }) {
   const toggleActive = (id) =>

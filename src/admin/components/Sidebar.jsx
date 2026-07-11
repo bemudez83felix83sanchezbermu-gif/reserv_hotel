@@ -1,4 +1,4 @@
-import { initials } from '../utils/helpers.js';
+import { initials } from '../../shared/utils/helpers.js';
 
 const NAV_ITEMS = [
   { key: 'dash',  label: 'Panel',
@@ -15,8 +15,9 @@ const NAV_ITEMS = [
     icon: <><path d="M4 8h10M18 8h2M4 16h2M10 16h10" /><circle cx="16" cy="8" r="2.4" /><circle cx="8" cy="16" r="2.4" /></> },
 ];
 
-export default function Sidebar({ tab, onNavigate, onGoGuest, config, staffName }) {
+export default function Sidebar({ tab, onNavigate, onGoGuest, config, staffName, onSignOut }) {
   const monogram = initials(config.name || 'Casa');
+  const staffInitial = (staffName || 'R')[0].toUpperCase();
 
   return (
     <div style={{
@@ -93,11 +94,28 @@ export default function Sidebar({ tab, onNavigate, onGoGuest, config, staffName 
           width: 34, height: 34, borderRadius: '50%', background: '#4A3323',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
           fontSize: 12, fontWeight: 700, color: '#EFCFA9', flex: 'none',
-        }}>{staffName[0].toUpperCase()}R</div>
-        <div>
-          <div style={{ fontSize: 12.5, fontWeight: 700 }}>{staffName}</div>
+        }}>{staffInitial}</div>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{staffName}</div>
           <div style={{ fontSize: 10.5, color: 'rgba(239,230,210,.55)' }}>Recepción · turno AM</div>
         </div>
+        {onSignOut && (
+          <button
+            onClick={onSignOut}
+            title="Cerrar sesión"
+            style={{
+              background: 'transparent', border: 'none', color: 'rgba(239,230,210,.55)',
+              cursor: 'pointer', padding: 4, borderRadius: 6, flex: 'none',
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#EFE6D2'}
+            onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(239,230,210,.55)'}
+          >
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4" />
+              <path d="M10 17l-5-5 5-5M15 12H4" />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );

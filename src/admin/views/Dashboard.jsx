@@ -1,5 +1,5 @@
-import { RESERVATIONS } from '../data/mockData.js';
-import { initials, roomLabel } from '../utils/helpers.js';
+import { RESERVATIONS } from '../../data/mockData.js';
+import { initials, roomLabel } from '../../shared/utils/helpers.js';
 
 const WEEK_OCC = [62, 58, 71, 78, 88, 96, 84];
 const WEEK_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];

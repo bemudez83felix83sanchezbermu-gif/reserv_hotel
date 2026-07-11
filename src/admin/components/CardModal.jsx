@@ -1,4 +1,4 @@
-import { initials } from '../utils/helpers.js';
+import { initials } from '../../shared/utils/helpers.js';
 
 export default function CardModal({ phase, selRes, room, config, onClose, onAgain }) {
   if (!phase) return null;

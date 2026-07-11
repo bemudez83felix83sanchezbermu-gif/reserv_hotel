@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import ImageSlot from '../components/ImageSlot.jsx';
+import ImageSlot from '../shared/ui/ImageSlot.jsx';
 import { usePersistentState } from '../hooks/usePersistentState.js';
 import { DEF_ROOMS, DEF_PKGS, DEF_CONFIG, REVIEWS } from '../data/mockData.js';
-import { fmt } from '../utils/helpers.js';
+import { fmt } from '../shared/utils/helpers.js';
 
 const MONTHS = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 const fd = (iso) => {

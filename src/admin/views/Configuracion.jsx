@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import ImageSlot from '../components/ImageSlot.jsx';
-import { SWATCHES } from '../data/mockData.js';
+import ImageSlot from '../../shared/ui/ImageSlot.jsx';
+import { SWATCHES } from '../../data/mockData.js';
 
 const CARD = { background: '#FFFDF7', border: '1px solid #EDE3CF' };
 const INPUT = {
