@@ -16,6 +16,8 @@ input, select, textarea { font-family: Karla, system-ui, sans-serif; }
 @keyframes spin     { to { transform: rotate(360deg) } }
 @keyframes drawRing { to { stroke-dashoffset: 0 } }
 @keyframes drawCheck{ to { stroke-dashoffset: 0 } }
+@keyframes slideR   { from { opacity: 0; transform: translateX(56px) } to { opacity: 1; transform: translateX(0) } }
+@keyframes mq       { from { transform: translateX(0) } to { transform: translateX(-50%) } }
 
 ::-webkit-scrollbar        { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb  { background: #D8CCB2; border-radius: 99px; border: 3px solid #F3EDE0; }

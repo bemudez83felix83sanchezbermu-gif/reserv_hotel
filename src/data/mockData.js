@@ -89,3 +89,10 @@ export const GUEST_POOL = [
 
 export const TODAY_ISO = '2026-07-05';
 export const STAFF_NAME = 'Valeria';
+
+export const REVIEWS = [
+  { text: 'Despertar con olor a pan recién horneado no tiene precio.', author: 'Mariana G. · CDMX' },
+  { text: 'La terraza del Nogal tiene el mejor atardecer de todo el valle.', author: 'Diego y Sofía · Monterrey' },
+  { text: 'Nos recibieron con vino y nos despidieron con abrazos.', author: 'Carmen L. · Guadalajara' },
+  { text: 'El desayuno en el jardín vale el viaje entero.', author: 'Andrés P. · Austin, TX' },
+];

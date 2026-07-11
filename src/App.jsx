@@ -8,10 +8,29 @@ import Habitaciones from './views/Habitaciones.jsx';
 import Paquetes from './views/Paquetes.jsx';
 import CheckIn from './views/CheckIn.jsx';
 import Configuracion from './views/Configuracion.jsx';
+import GuestApp from './guest/GuestApp.jsx';
 import { usePersistentState } from './hooks/usePersistentState.js';
 import { DEF_ROOMS, DEF_PKGS, DEF_STRUCT, DEF_CONFIG, STAFF_NAME } from './data/mockData.js';
 
+const isGuestHash = () => typeof window !== 'undefined' && window.location.hash === '#huesped';
+
 export default function App() {
+  const [route, setRoute] = useState(isGuestHash() ? 'guest' : 'admin');
+
+  useEffect(() => {
+    const onHash = () => setRoute(isGuestHash() ? 'guest' : 'admin');
+    window.addEventListener('hashchange', onHash);
+    return () => window.removeEventListener('hashchange', onHash);
+  }, []);
+
+  const goGuest = () => { window.location.hash = 'huesped'; };
+  const goAdmin = () => { window.location.hash = ''; };
+
+  if (route === 'guest') return <GuestApp onGoAdmin={goAdmin} />;
+  return <AdminApp onGoGuest={goGuest} />;
+}
+
+function AdminApp({ onGoGuest }) {
   const rootRef = useRef(null);
   const [tab, setTab] = useState('dash');
   const [rooms, setRooms] = usePersistentState('estancia-rooms', DEF_ROOMS);
@@ -19,15 +38,14 @@ export default function App() {
   const [config, setConfig] = usePersistentState('estancia-config', DEF_CONFIG);
   const [structure, setStructure] = usePersistentState('estancia-structure', DEF_STRUCT);
 
-  const [modal, setModal] = useState(null); // { kind:'room'|'pkg', isNew, draft }
+  const [modal, setModal] = useState(null);
   const [selResCode, setSelResCode] = useState('CA-4102');
   const [cardPhase, setCardPhase] = useState(null);
-  const [cardContext, setCardContext] = useState(null); // { selRes, room }
+  const [cardContext, setCardContext] = useState(null);
   const [issued, setIssued] = useState({});
 
   const timersRef = useRef([]);
 
-  // Apply accent as a CSS variable on the root grid
   useEffect(() => {
     if (rootRef.current) rootRef.current.style.setProperty('--ac', config.accent || '#B8552F');
   }, [config.accent]);
@@ -97,7 +115,7 @@ export default function App() {
       fontFamily: 'Karla, system-ui, sans-serif',
       WebkitFontSmoothing: 'antialiased',
     }}>
-      <Sidebar tab={tab} onNavigate={setTab} config={config} staffName={STAFF_NAME} />
+      <Sidebar tab={tab} onNavigate={setTab} onGoGuest={onGoGuest} config={config} staffName={STAFF_NAME} />
 
       <div style={{ overflowY: 'auto', position: 'relative' }}>
         {tab === 'dash'  && <Dashboard config={config} staffName={STAFF_NAME} rooms={rooms} onCheckIn={(code) => { setSelResCode(code); setTab('chk'); }} />}

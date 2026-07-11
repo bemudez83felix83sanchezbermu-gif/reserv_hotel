@@ -15,7 +15,7 @@ const NAV_ITEMS = [
     icon: <><path d="M4 8h10M18 8h2M4 16h2M10 16h10" /><circle cx="16" cy="8" r="2.4" /><circle cx="8" cy="16" r="2.4" /></> },
 ];
 
-export default function Sidebar({ tab, onNavigate, config, staffName }) {
+export default function Sidebar({ tab, onNavigate, onGoGuest, config, staffName }) {
   const monogram = initials(config.name || 'Casa');
 
   return (
@@ -69,20 +69,24 @@ export default function Sidebar({ tab, onNavigate, config, staffName }) {
 
       <div style={{ flex: 1 }} />
 
-      <div style={{
+      <button onClick={onGoGuest} style={{
         display: 'flex', alignItems: 'center', gap: 10,
         padding: '11px 12px', borderRadius: 11,
         background: 'rgba(239,230,210,.07)', color: '#EFE6D2',
-        fontSize: 12.5, fontWeight: 700,
-        border: '1px solid rgba(239,230,210,.14)',
-      }}>
+        fontSize: 12.5, fontWeight: 700, fontFamily: 'Karla, sans-serif',
+        border: '1px solid rgba(239,230,210,.14)', cursor: 'pointer',
+        textAlign: 'left',
+      }}
+        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239,230,210,.12)'}
+        onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(239,230,210,.07)'}
+      >
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
           <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
           <path d="M11 18.5h2" />
         </svg>
         Ver app del huésped
         <span style={{ marginLeft: 'auto' }}>↗</span>
-      </div>
+      </button>
 
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14, padding: '0 6px' }}>
         <div style={{
