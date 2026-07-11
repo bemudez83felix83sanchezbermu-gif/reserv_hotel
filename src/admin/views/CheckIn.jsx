@@ -1,5 +1,5 @@
-import { RESERVATIONS } from '../data/mockData.js';
-import { initials, roomLabel } from '../utils/helpers.js';
+import { RESERVATIONS } from '../../data/mockData.js';
+import { initials, roomLabel } from '../../shared/utils/helpers.js';
 
 const CARD = { background: '#FFFDF7', border: '1px solid #EDE3CF', borderRadius: 15 };
 
