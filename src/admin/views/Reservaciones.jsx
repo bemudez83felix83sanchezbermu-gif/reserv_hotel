@@ -1,47 +1,86 @@
 import { useMemo, useState } from 'react';
-import { RESERVATIONS, TODAY_ISO, GUEST_POOL } from '../../data/mockData.js';
-import { STATE_COLORS, dAbsOf, fmtAbs, roomsOf, roomLabel } from '../../shared/utils/helpers.js';
+import { STATE_COLORS, dAbsOf, fmtAbs, todayIso, addDaysIso, capitalize } from '../../shared/utils/helpers.js';
+import { useReservationsInRange, useCreateReservation } from '../../shared/hooks/useReservations.jsx';
+import { useRoomBlocksInRange } from '../../shared/hooks/useRoomBlocks.jsx';
+import ReservationModal from '../components/ReservationModal.jsx';
 
 const CARD = { background: '#FFFDF7', border: '1px solid #EDE3CF', borderRadius: 18 };
 const CHART_WDS = ['DOM', 'LUN', 'MAR', 'MIÉ', 'JUE', 'VIE', 'SÁB'];
+const ACTIVE_STATUSES = new Set(['confirmada', 'llega-hoy', 'en-casa']);
 
-const buildingsFromStructure = (s) => {
-  if (s.mode === 'plano') {
-    return [{
-      id: 'flat', name: 'Habitaciones del hotel',
-      start: 101, end: 100 + Math.max(1, Math.min(400, Number(s.flatCount) || 1)),
-      letter: '', letterPos: 'pre',
-    }];
-  }
-  return s.buildings.map((b) => {
-    const start = Math.max(1, Number(b.start) || 101);
-    const end = Math.max(start, Math.min(start + 399, Number(b.end) || start));
-    return { ...b, start, end };
-  });
-};
-
-const applyL = (b, n) => (b.letter ? (b.letterPos === 'suf' ? String(n) + b.letter : b.letter + n) : String(n));
-
-export default function Reservaciones({ structure, rooms, onGoConfig }) {
+export default function Reservaciones({ rooms, buildings, pkgs, onGoConfig }) {
   const [viewMode, setViewMode] = useState('mapa');
-  const [mapDate, setMapDate] = useState(TODAY_ISO);
+  const [mapDate, setMapDate] = useState(todayIso);
   const [selBuilding, setSelBuilding] = useState(null);
-  const [selRoomNum, setSelRoomNum] = useState(null);
+  const [selRoomId, setSelRoomId] = useState(null);
+  const [showNewRes, setShowNewRes] = useState(false);
 
-  const builds = useMemo(() => buildingsFromStructure(structure), [structure]);
-  const dAbs = dAbsOf(mapDate || TODAY_ISO);
-  const todayAbs = dAbsOf(TODAY_ISO);
+  const builds = useMemo(() => {
+    if (!buildings.length) return [{ id: 'all', name: 'Todas las habitaciones', rooms }];
+    return buildings.map((b) => ({ id: b.id, name: b.name, rooms: rooms.filter((r) => r.building_id === b.id) }));
+  }, [buildings, rooms]);
+
   const selB = builds.find((b) => b.id === selBuilding) || builds[0];
-  const selRooms = selB ? roomsOf(selB, dAbs) : [];
+
+  const rangeTo = useMemo(() => addDaysIso(mapDate || todayIso(), 30), [mapDate]);
+  const { reservations: resWindow, refresh: refreshWindow } = useReservationsInRange(mapDate || todayIso(), rangeTo);
+  const { blocks: blocksOnDate } = useRoomBlocksInRange(mapDate || todayIso(), mapDate || todayIso());
+  const { createReservation } = useCreateReservation();
+  const blockedRoomIds = useMemo(() => new Set(blocksOnDate.map((b) => b.roomId)), [blocksOnDate]);
+
+  const dAbs = dAbsOf(mapDate || todayIso());
+  const todayAbs = dAbsOf(todayIso());
+  const isToday = dAbs === todayAbs;
+
+  // Reserva activa que cubre la noche de mapDate por habitación.
+  const statusByRoom = useMemo(() => {
+    const map = new Map();
+    resWindow.forEach((res) => {
+      if (!ACTIVE_STATUSES.has(res.status)) return;
+      if (res.checkIn <= mapDate && res.checkOut > mapDate) {
+        map.set(res.roomId, res);
+      }
+    });
+    return map;
+  }, [resWindow, mapDate]);
+
+  // Próxima llegada por habitación (para habitaciones libres).
+  const nextArrivalByRoom = useMemo(() => {
+    const map = new Map();
+    resWindow.forEach((res) => {
+      if (!ACTIVE_STATUSES.has(res.status)) return;
+      if (res.checkIn > mapDate) {
+        const cur = map.get(res.roomId);
+        if (!cur || res.checkIn < cur.checkIn) map.set(res.roomId, res);
+      }
+    });
+    return map;
+  }, [resWindow, mapDate]);
+
+  const decorate = (list) => list.map((r) => {
+    const res = statusByRoom.get(r.id);
+    const nextRes = nextArrivalByRoom.get(r.id);
+    const st = blockedRoomIds.has(r.id) ? 'bloqueada' : res ? (res.status === 'en-casa' ? 'ocupada' : 'pendiente') : 'libre';
+    return {
+      ...r,
+      st,
+      label: r.num,
+      guest: res?.guest || '',
+      saleAbs: res ? dAbsOf(res.checkOut) : null,
+      checkInAbs: res ? dAbsOf(res.checkIn) : null,
+      nextAbs: nextRes ? dAbsOf(nextRes.checkIn) : null,
+    };
+  });
+
+  const selRooms = selB ? decorate(selB.rooms) : [];
 
   const shiftMapDate = (n) => {
-    const cur = Date.parse((mapDate || TODAY_ISO) + 'T12:00:00') + n * 86400000;
+    const cur = Date.parse((mapDate || todayIso()) + 'T12:00:00') + n * 86400000;
     setMapDate(new Date(cur).toISOString().slice(0, 10));
-    setSelRoomNum(null);
+    setSelRoomId(null);
   };
-  const mapDateObj = new Date((mapDate || TODAY_ISO) + 'T12:00:00');
+  const mapDateObj = new Date((mapDate || todayIso()) + 'T12:00:00');
   const mapDateLabel = mapDateObj.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' });
-  const isToday = dAbs === todayAbs;
 
   const seg = (on) => ({
     background: on ? '#FFFDF7' : 'transparent',
@@ -49,26 +88,24 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
     boxShadow: on ? '0 2px 6px rgba(62,44,22,.12)' : 'none',
   });
 
-  // Departures within 7 days for the selected building
+  // Salidas dentro de 7 días para el edificio seleccionado.
   const depGroups = useMemo(() => {
     const map = {};
     selRooms.forEach((r) => {
-      if (r.st === 'ocupada' && r.saleAbs > dAbs && r.saleAbs <= dAbs + 7) {
+      if (r.st === 'ocupada' && r.saleAbs != null && r.saleAbs > dAbs && r.saleAbs <= dAbs + 7) {
         (map[r.saleAbs] = map[r.saleAbs] || []).push(r);
       }
     });
-    const types = rooms.map((r) => r.type || r.name).filter(Boolean);
-    const typeOf = (h) => (types.length ? types[(h >>> 6) % types.length] : 'Habitación');
     return Object.keys(map)
       .map(Number)
       .sort((a, b) => a - b)
       .map((a) => {
         const t = new Date(a * 86400000 + 43200000);
         const items = map[a]
-          .sort((x, y) => x.num - y.num)
+          .sort((x, y) => String(x.label).localeCompare(String(y.label)))
           .map((r) => ({
-            label: r.label, type: typeOf(r.h),
-            tip: `Hab. ${r.label} · ${typeOf(r.h)} · se desocupa el ${fmtAbs(a)}`,
+            label: r.label, type: r.type || 'Habitación',
+            tip: `Hab. ${r.label} · ${r.type || 'Habitación'} · se desocupa el ${fmtAbs(a)}`,
           }));
         const rel = a === dAbs + 1 ? 'Mañana' : `En ${a - dAbs} días`;
         return {
@@ -77,46 +114,62 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
           items,
         };
       });
-  }, [selRooms, dAbs, rooms]);
+  }, [selRooms, dAbs]);
   const depCount = depGroups.reduce((s, g) => s + g.items.length, 0);
 
-  const selRoom = selRooms.find((r) => r.num === selRoomNum);
+  const selRoom = selRooms.find((r) => r.id === selRoomId);
   const sc = selRoom ? STATE_COLORS[selRoom.st] : null;
-  const selGuest = selRoom ? GUEST_POOL[selRoom.h % GUEST_POOL.length] : '';
   const nFree = selRooms.filter((r) => r.st === 'libre').length;
 
-  // ────── Timeline chart
-  const wdJul = (d) => ['D', 'L', 'M', 'X', 'J', 'V', 'S'][(2 + d) % 7];
-  const chartDays = Array.from({ length: 31 }, (_, i) => {
+  // ────── Cronograma (mes actual)
+  const today = new Date();
+  const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate();
+  const monthStartIso = new Date(today.getFullYear(), today.getMonth(), 1).toISOString().slice(0, 10);
+  const monthEndIso = new Date(today.getFullYear(), today.getMonth(), daysInMonth).toISOString().slice(0, 10);
+  const monthStartAbs = dAbsOf(monthStartIso);
+  const { reservations: monthRes, refresh: refreshMonth } = useReservationsInRange(monthStartIso, monthEndIso);
+  const onReservationCreated = async (payload) => {
+    await createReservation(payload);
+    refreshWindow();
+    refreshMonth();
+  };
+  const monthLabel = capitalize(today.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }));
+
+  const chartDays = Array.from({ length: daysInMonth }, (_, i) => {
     const d = i + 1;
-    const today = d === 5;
+    const dt = new Date(today.getFullYear(), today.getMonth(), d);
+    const isTodayCol = d === today.getDate();
     return {
-      n: d, wd: wdJul(d), gc: d + 1 + ' / ' + (d + 2),
-      bg: today ? 'var(--ac, #B8552F)' : 'transparent',
-      fg: today ? '#FBF6EA' : '#6B5D4A',
+      n: d, wd: CHART_WDS[dt.getDay()][0], gc: (d + 1) + ' / ' + (d + 2),
+      bg: isTodayCol ? 'var(--ac, #B8552F)' : 'transparent',
+      fg: isTodayCol ? '#FBF6EA' : '#6B5D4A',
     };
   });
   const chartRows = rooms.map((r, i) => ({
-    key: r.id, name: r.name, sub: r.num === 'Casa' ? 'Villa' : 'Hab. ' + r.num, gr: String(i + 2),
+    key: r.id, name: r.name, sub: 'Hab. ' + r.num, gr: String(i + 2),
   }));
   const statusStyle = {
     'en-casa': { bg: '#6F7D5C', fg: '#F4F1E6' },
     'llega-hoy': { bg: 'var(--ac, #B8552F)', fg: '#FBF6EA' },
     confirmada: { bg: '#E4D5B8', fg: '#5C4A2E' },
   };
-  const chartBars = RESERVATIONS
-    .map((b) => {
-      const ri = rooms.findIndex((r) => r.id === b.roomId);
+  const chartBars = monthRes
+    .filter((res) => ACTIVE_STATUSES.has(res.status))
+    .map((res) => {
+      const ri = rooms.findIndex((r) => r.id === res.roomId);
       if (ri < 0) return null;
-      const s = statusStyle[b.status] || statusStyle.confirmada;
+      const s = statusStyle[res.status] || statusStyle.confirmada;
+      const startDay = Math.max(dAbsOf(res.checkIn), monthStartAbs) - monthStartAbs + 1;
+      const endDay = Math.min(dAbsOf(res.checkOut), monthStartAbs + daysInMonth) - monthStartAbs + 1;
       return {
-        key: b.code, guest: b.guest,
-        gr: String(ri + 2), gc: b.start + 1 + ' / ' + (b.end + 1),
+        key: res.id, guest: res.guest,
+        gr: String(ri + 2), gc: (startDay + 1) + ' / ' + (endDay + 1),
         bg: s.bg, fg: s.fg,
-        tip: `${b.guest} · ${roomLabel(rooms, b.roomId)} · ${b.start}–${b.end} jul · ${b.n} huéspedes`,
+        tip: `${res.guest} · Hab. ${res.roomNum} · ${res.checkIn} – ${res.checkOut}`,
       };
     })
     .filter(Boolean);
+  const todayGc = (today.getDate() + 1) + ' / ' + (today.getDate() + 2);
 
   return (
     <div style={{ padding: '30px 34px 44px', animation: 'fadeIn .35s ease both' }}>
@@ -124,7 +177,7 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
         <div>
           <div style={{ fontFamily: 'Marcellus, Georgia, serif', fontSize: 29 }}>Reservaciones</div>
           <div style={{ fontSize: 13.5, color: '#8A7A63', marginTop: 4 }}>
-            Mapa de ocupación por edificio · hoy, domingo 5 de julio
+            Mapa de ocupación por edificio · hoy, {capitalize(new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' }))}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -158,7 +211,13 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
           <div style={{
             background: '#2E2418', color: '#FBF6EA', borderRadius: 999,
             padding: '8px 18px', fontSize: 13, fontWeight: 700,
-          }}>Julio 2026</div>
+          }}>{monthLabel}</div>
+          <button onClick={() => setShowNewRes(true)} style={{
+            flex: 'none', padding: '11px 18px', border: 'none', borderRadius: 12,
+            background: 'var(--ac, #B8552F)', color: '#FBF6EA',
+            fontFamily: 'Karla, sans-serif', fontSize: 13, fontWeight: 700, cursor: 'pointer',
+            boxShadow: '0 8px 18px rgba(184,85,47,.28)',
+          }}>+ Nueva reserva</button>
         </div>
       </div>
 
@@ -173,7 +232,7 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
                 borderRadius: 9, cursor: 'pointer', color: '#6B5D4A', fontSize: 15, fontWeight: 700,
               }}>‹</button>
               <input type="date" value={mapDate}
-                onChange={(e) => { setMapDate(e.target.value || TODAY_ISO); setSelRoomNum(null); }}
+                onChange={(e) => { setMapDate(e.target.value || todayIso()); setSelRoomId(null); }}
                 style={{ border: 'none', background: 'transparent', fontFamily: 'Karla, sans-serif', fontSize: 13.5, fontWeight: 700, color: '#2E2418', outline: 'none', padding: '0 4px' }}
               />
               <button onClick={() => shiftMapDate(1)} style={{
@@ -181,7 +240,7 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
                 borderRadius: 9, cursor: 'pointer', color: '#6B5D4A', fontSize: 15, fontWeight: 700,
               }}>›</button>
             </div>
-            <button onClick={() => { setMapDate(TODAY_ISO); setSelRoomNum(null); }} style={{
+            <button onClick={() => { setMapDate(todayIso()); setSelRoomId(null); }} style={{
               padding: '9px 16px', borderRadius: 999,
               border: '1px solid ' + (isToday ? '#2E2418' : '#E4D8C0'),
               background: isToday ? '#2E2418' : '#FFFDF7',
@@ -209,14 +268,14 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 14, marginTop: 14 }}>
             {builds.map((b, i) => {
               const on = selB && b.id === selB.id;
-              const rms = roomsOf(b, dAbs);
-              const cnt = { libre: 0, ocupada: 0, pendiente: 0 };
+              const rms = decorate(b.rooms);
+              const cnt = { libre: 0, ocupada: 0, pendiente: 0, bloqueada: 0 };
               rms.forEach((r) => cnt[r.st]++);
               const winds = rms.slice(0, 18).map((r) => STATE_COLORS[r.st].dot);
               return (
                 <div
                   key={b.id}
-                  onClick={() => { setSelBuilding(b.id); setSelRoomNum(null); }}
+                  onClick={() => { setSelBuilding(b.id); setSelRoomId(null); }}
                   style={{
                     background: '#FFFDF7',
                     border: '1.5px solid ' + (on ? 'var(--ac, #B8552F)' : '#EDE3CF'),
@@ -243,9 +302,7 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginTop: 12 }}>
                     <div style={{ fontSize: 14.5, fontWeight: 700 }}>{b.name}</div>
-                    <div style={{ fontSize: 11, color: '#8A7A63' }}>
-                      {rms.length} hab. · {rms.length ? rms[0].label + '–' + rms[rms.length - 1].label : ''}
-                    </div>
+                    <div style={{ fontSize: 11, color: '#8A7A63' }}>{rms.length} hab.</div>
                   </div>
                   <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 11.5, fontWeight: 700 }}>
                     <span style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#3F6E4C' }}>
@@ -280,21 +337,24 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
                   <span style={{ width: 10, height: 10, borderRadius: 3, background: '#C0503C' }} />Ocupada
                 </span>
                 <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ width: 10, height: 10, borderRadius: 3, background: '#D9A13B' }} />Pendiente
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: '#D9A13B' }} />Reservada
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ width: 10, height: 10, borderRadius: 3, background: '#8A7A63' }} />Bloqueada
                 </span>
               </div>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(56px, 1fr))', gap: 8, marginTop: 16 }}>
               {selRooms.map((r) => {
                 const c = STATE_COLORS[r.st];
-                const on = selRoomNum === r.num;
-                const guest = GUEST_POOL[r.h % GUEST_POOL.length];
+                const on = selRoomId === r.id;
                 const tip = 'Hab. ' + r.label + ' · ' + c.label +
-                  (r.st === 'ocupada' ? ' · ' + guest + ' · sale el ' + fmtAbs(r.saleAbs)
-                    : r.st === 'pendiente' ? ' · ' + guest + ' · confirma antes del ' + fmtAbs(r.nextAbs)
-                      : ' · libre hasta el ' + fmtAbs(r.nextAbs));
+                  (r.st === 'bloqueada' ? ''
+                    : r.st === 'ocupada' ? ' · ' + r.guest + ' · sale el ' + fmtAbs(r.saleAbs)
+                    : r.st === 'pendiente' ? ' · ' + r.guest + ' · llega el ' + fmtAbs(r.checkInAbs)
+                      : r.nextAbs != null ? ' · libre hasta el ' + fmtAbs(r.nextAbs) : ' · sin reservas próximas');
                 return (
-                  <div key={r.num} onClick={() => setSelRoomNum(r.num)} title={tip}
+                  <div key={r.id} onClick={() => setSelRoomId(r.id)} title={tip}
                     style={{
                       border: '1.5px solid ' + (on ? 'var(--ac, #B8552F)' : c.bd),
                       background: c.bg, color: c.fg, borderRadius: 11,
@@ -311,6 +371,11 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
                   </div>
                 );
               })}
+              {selRooms.length === 0 && (
+                <div style={{ fontSize: 12.5, color: '#8A7A63', gridColumn: '1 / -1' }}>
+                  Este edificio no tiene habitaciones registradas.
+                </div>
+              )}
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16, padding: '12px 15px', borderRadius: 13, background: '#F4EFE3', flexWrap: 'wrap' }}>
               <span style={{ width: 10, height: 10, borderRadius: 99, background: selRoom ? sc.dot : '#B3A386', flex: 'none' }} />
@@ -319,11 +384,15 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
               </span>
               <span style={{ fontSize: 12.5, color: '#6B5D4A' }}>
                 {selRoom
-                  ? selRoom.st === 'ocupada'
-                    ? `${selGuest} · sale el ${fmtAbs(selRoom.saleAbs)}`
+                  ? selRoom.st === 'bloqueada'
+                    ? 'No disponible para reservar en esta fecha · ver Bloqueos'
+                    : selRoom.st === 'ocupada'
+                    ? `${selRoom.guest} · sale el ${fmtAbs(selRoom.saleAbs)}`
                     : selRoom.st === 'pendiente'
-                      ? `Reserva de ${selGuest} por confirmar · se libera el ${fmtAbs(selRoom.nextAbs)}`
-                      : `Disponible hasta el ${fmtAbs(selRoom.nextAbs)} · lista para asignar`
+                      ? `Reserva de ${selRoom.guest} · llega el ${fmtAbs(selRoom.checkInAbs)}`
+                      : selRoom.nextAbs != null
+                        ? `Disponible hasta el ${fmtAbs(selRoom.nextAbs)} · lista para asignar`
+                        : 'Disponible · lista para asignar'
                   : 'Haz clic en cualquier habitación para ver su estado en la fecha elegida.'}
               </span>
             </div>
@@ -383,7 +452,7 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
       ) : (
         <>
           <div style={{ ...CARD, padding: 18, marginTop: 20, overflowX: 'auto', animation: 'fadeUp .5s .1s both' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '150px repeat(31, minmax(24px, 1fr))', minWidth: 1000, position: 'relative' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: `150px repeat(${daysInMonth}, minmax(24px, 1fr))`, minWidth: 1000, position: 'relative' }}>
               <div style={{ gridRow: 1, gridColumn: 1, fontSize: 10.5, fontWeight: 700, letterSpacing: 1.2, color: '#8A7A63', padding: '6px 8px 10px 4px' }}>HABITACIÓN</div>
               {chartDays.map((d) => (
                 <div key={d.n} style={{ gridRow: 1, gridColumn: d.gc, textAlign: 'center', paddingBottom: 8 }}>
@@ -406,15 +475,15 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
                     <div style={{ fontSize: 10.5, color: '#8A7A63' }}>{row.sub}</div>
                   </div>
                   <div style={{
-                    gridColumn: '2 / -1', gridRow: row.gr,
+                    gridColumn: `2 / -1`, gridRow: row.gr,
                     borderTop: '1px solid #F0E8D6',
                     backgroundImage: 'linear-gradient(90deg, #F2EADA 1px, transparent 1px)',
-                    backgroundSize: 'calc(100%/31) 100%',
+                    backgroundSize: `calc(100%/${daysInMonth}) 100%`,
                   }} />
                 </div>
               ))}
               <div style={{
-                gridColumn: '6 / 7', gridRow: '1 / ' + (rooms.length + 2),
+                gridColumn: todayGc, gridRow: '1 / ' + (rooms.length + 2),
                 background: 'rgba(184,85,47,.05)', borderLeft: '1.5px dashed var(--ac, #B8552F)',
                 pointerEvents: 'none',
               }} />
@@ -431,12 +500,27 @@ export default function Reservaciones({ structure, rooms, onGoConfig }) {
                 onMouseLeave={(e) => e.currentTarget.style.transform = ''}
                 >{bar.guest}</div>
               ))}
+              {rooms.length === 0 && (
+                <div style={{ gridColumn: '1 / -1', gridRow: 2, padding: '14px 4px', fontSize: 12.5, color: '#8A7A63' }}>
+                  No hay habitaciones registradas.
+                </div>
+              )}
             </div>
           </div>
           <div style={{ fontSize: 12, color: '#9A8A70', marginTop: 12 }}>
-            Pasa el cursor sobre una barra para ver el detalle. La línea punteada marca hoy, domingo 5.
+            Pasa el cursor sobre una barra para ver el detalle. La línea punteada marca hoy, {today.getDate()} de {monthLabel.split(' ')[0].toLowerCase()}.
           </div>
         </>
+      )}
+
+      {showNewRes && (
+        <ReservationModal
+          rooms={rooms}
+          pkgs={pkgs || []}
+          defaultRoomId={selRoomId}
+          onClose={() => setShowNewRes(false)}
+          onCreated={onReservationCreated}
+        />
       )}
     </div>
   );

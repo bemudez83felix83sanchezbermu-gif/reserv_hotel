@@ -1,10 +1,14 @@
-import { RESERVATIONS } from '../../data/mockData.js';
-import { initials, roomLabel } from '../../shared/utils/helpers.js';
+import { initials, roomLabel, todayIso, dAbsOf } from '../../shared/utils/helpers.js';
+import { useArrivals, useInHouse } from '../../shared/hooks/useReservations.jsx';
+import { useKeyCards } from '../../shared/hooks/useKeyCards.jsx';
+import { printActiveTemplate } from '../../shared/hooks/usePrintTemplates.jsx';
 
 const CARD = { background: '#FFFDF7', border: '1px solid #EDE3CF', borderRadius: 15 };
+const fmtShort = (iso) => new Date(iso + 'T12:00:00').toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
 
-function GuestRow({ r, accent, on, cards, onSelect, rooms }) {
-  const hasCard = cards > 0 || r.status === 'en-casa';
+function GuestRow({ r, accent, on, rooms, onSelect }) {
+  const { activeCount } = useKeyCards(r.id);
+  const hasCard = activeCount > 0;
   const isArrival = r.status === 'llega-hoy';
   return (
     <div onClick={onSelect} style={{
@@ -27,7 +31,7 @@ function GuestRow({ r, accent, on, cards, onSelect, rooms }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13.5, fontWeight: 700 }}>{r.guest}</div>
         <div style={{ fontSize: 11.5, color: '#8A7A63', marginTop: 1 }}>
-          {roomLabel(rooms, r.roomId)} · {r.end - r.start} noches · {r.n} pax
+          {roomLabel(rooms, r.roomId)} · {dAbsOf(r.checkOut) - dAbsOf(r.checkIn)} noches · {r.guestsCount} pax
         </div>
       </div>
       <div style={{
@@ -40,52 +44,81 @@ function GuestRow({ r, accent, on, cards, onSelect, rooms }) {
   );
 }
 
-export default function CheckIn({ rooms, selResCode, setSelResCode, issued, onStartCardFlow, accent }) {
-  const arrivals = RESERVATIONS.filter((r) => r.status === 'llega-hoy');
-  const inHouse = RESERVATIONS.filter((r) => r.status === 'en-casa');
-  const selR = RESERVATIONS.find((r) => r.code === selResCode) || arrivals[0] || RESERVATIONS[0];
-  const selCards = issued[selR.code] || 0;
-  const room = rooms.find((r) => r.id === selR.roomId);
+export default function CheckIn({ rooms, selResCode, setSelResCode, onStartCardFlow, accent }) {
+  const today = todayIso();
+  const { arrivals } = useArrivals(today);
+  const { inHouse } = useInHouse(today);
+  const todayArrivals = arrivals.filter((r) => r.status === 'llega-hoy');
+  const todayInHouse = inHouse.filter((r) => r.status === 'en-casa');
+
+  const selR = todayArrivals.find((r) => r.code === selResCode) || todayInHouse.find((r) => r.code === selResCode)
+    || todayArrivals[0] || todayInHouse[0] || null;
+
+  const { cards: selCardList, activeCount: selCards, deactivateCard, markCardReplaced } = useKeyCards(selR?.id);
+  const room = selR ? rooms.find((r) => r.id === selR.roomId) : null;
+  const activeCards = selCardList.filter((c) => c.status === 'active');
+
+  if (!selR) {
+    return (
+      <div style={{ padding: '30px 34px 44px', animation: 'fadeIn .35s ease both' }}>
+        <div style={{ fontFamily: 'Marcellus, Georgia, serif', fontSize: 29 }}>Check-in y tarjetas</div>
+        <div style={{ fontSize: 13.5, color: '#8A7A63', marginTop: 12 }}>
+          No hay llegadas ni huéspedes en casa hoy.
+        </div>
+      </div>
+    );
+  }
 
   const selRes = {
-    code: selR.code, guest: selR.guest,
+    id: selR.id, code: selR.code, guest: selR.guest,
     roomLine: roomLabel(rooms, selR.roomId),
-    dates: `${selR.start} – ${selR.end} jul`,
-    nights: String(selR.end - selR.start),
-    n: String(selR.n),
-    pkgChips: selR.pkgs.length ? selR.pkgs : ['Sin paquetes'],
+    dates: `${fmtShort(selR.checkIn)} – ${fmtShort(selR.checkOut)}`,
+    nights: String(dAbsOf(selR.checkOut) - dAbsOf(selR.checkIn)),
+    n: String(selR.guestsCount),
+    pkgChips: selR.packages.length ? selR.packages.map((p) => p.name) : ['Sin paquetes'],
     cardCount: String(selCards),
     cardCountColor: selCards > 0 ? '#6F9B4E' : '#B3A386',
     btnLabel: selCards > 0 ? 'Codificar otra tarjeta' : 'Activar tarjeta-llave',
+  };
+
+  const handleReplace = async (card) => {
+    await markCardReplaced(card.id);
+    onStartCardFlow(selRes, room);
+  };
+
+  const handlePrintCard = async () => {
+    const ok = await printActiveTemplate('key_card', {
+      guest_name: selRes.guest, reservation_code: selRes.code, room_label: selRes.roomLine,
+      check_in: selR.checkIn, check_out: selR.checkOut,
+    });
+    if (!ok) window.alert('No hay una plantilla activa de tarjeta-llave. Configúrala en Plantillas de impresión.');
   };
 
   return (
     <div style={{ padding: '30px 34px 44px', animation: 'fadeIn .35s ease both' }}>
       <div style={{ fontFamily: 'Marcellus, Georgia, serif', fontSize: 29 }}>Check-in y tarjetas</div>
       <div style={{ fontSize: 13.5, color: '#8A7A63', marginTop: 4 }}>
-        Domingo 5 de julio · codificador NFC conectado por USB
+        Codificador NFC conectado por USB
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'minmax(280px, 370px) minmax(0, 1fr)', gap: 16, marginTop: 20, alignItems: 'start' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: '#8A7A63', padding: '0 2px' }}>
-            LLEGADAS DE HOY · {arrivals.length}
+            LLEGADAS DE HOY · {todayArrivals.length}
           </div>
-          {arrivals.map((r) => (
-            <GuestRow key={r.code} r={r} accent={accent}
+          {todayArrivals.map((r) => (
+            <GuestRow key={r.id} r={r} accent={accent}
               on={selResCode === r.code}
-              cards={issued[r.code] || 0}
               rooms={rooms}
               onSelect={() => setSelResCode(r.code)}
             />
           ))}
           <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.4, color: '#8A7A63', padding: '10px 2px 0' }}>
-            YA EN CASA · {inHouse.length}
+            YA EN CASA · {todayInHouse.length}
           </div>
-          {inHouse.map((r) => (
-            <GuestRow key={r.code} r={r} accent={accent}
+          {todayInHouse.map((r) => (
+            <GuestRow key={r.id} r={r} accent={accent}
               on={selResCode === r.code}
-              cards={issued[r.code] || 0}
               rooms={rooms}
               onSelect={() => setSelResCode(r.code)}
             />
@@ -149,9 +182,45 @@ export default function CheckIn({ rooms, selResCode, setSelResCode, issued, onSt
             </svg>
             {selRes.btnLabel}
           </button>
+          <button
+            onClick={handlePrintCard}
+            style={{
+              width: '100%', marginTop: 8, padding: 11, border: '1px solid #DACBAE', borderRadius: 11,
+              background: 'transparent', color: '#2E2418',
+              fontFamily: 'Karla, sans-serif', fontSize: 12.5, fontWeight: 700, cursor: 'pointer',
+            }}
+          >Imprimir tarjeta</button>
           <div style={{ fontSize: 11.5, color: '#9A8A70', textAlign: 'center', marginTop: 10 }}>
             Usa el codificador conectado al equipo · las tarjetas expiran al hacer check-out
           </div>
+
+          {activeCards.length > 0 && (
+            <div style={{ marginTop: 18 }}>
+              <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1, color: '#8A7A63' }}>TARJETAS ACTIVAS</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+                {activeCards.map((c) => (
+                  <div key={c.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10,
+                    border: '1px solid #EDE3CF', borderRadius: 11, padding: '9px 12px',
+                  }}>
+                    <span style={{ fontSize: 11.5, fontWeight: 700, fontFamily: 'monospace' }}>{c.card_uid || c.id.slice(0, 8)}</span>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={() => handleReplace(c)} style={{
+                        padding: '6px 11px', border: '1px solid #DACBAE', borderRadius: 8,
+                        background: 'transparent', color: '#2E2418',
+                        fontFamily: 'Karla, sans-serif', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      }}>Reemplazar</button>
+                      <button onClick={() => deactivateCard(c.id)} style={{
+                        padding: '6px 11px', border: '1px solid #D49B8B', borderRadius: 8,
+                        background: 'transparent', color: '#93402D',
+                        fontFamily: 'Karla, sans-serif', fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                      }}>Desactivar</button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

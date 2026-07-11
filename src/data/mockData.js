@@ -38,57 +38,11 @@ export const DEF_PKGS = [
   { id: 'p4', name: 'Salida tardía',       price: 450,  unit: 'por estancia',      active: true, desc: 'Disfruta tu habitación y la alberca hasta las 3:00 pm del día de salida.' },
 ];
 
-export const RESERVATIONS = [
-  { code: 'CA-3128', guest: 'Fernanda Ruiz',       roomId: 'r2', start: 3,  end: 7,  status: 'en-casa',    n: 2, pkgs: ['Desayuno de la casa'] },
-  { code: 'CA-2981', guest: 'Familia Hernández',   roomId: 'r4', start: 4,  end: 6,  status: 'en-casa',    n: 4, pkgs: ['Salida tardía'] },
-  { code: 'CA-4102', guest: 'Marco Antonio Silva', roomId: 'r1', start: 5,  end: 8,  status: 'llega-hoy',  n: 2, pkgs: ['Desayuno de la casa'] },
-  { code: 'CA-4177', guest: 'Julia Béjar',         roomId: 'r3', start: 5,  end: 9,  status: 'llega-hoy',  n: 2, pkgs: ['Ritual de spa', 'Desayuno de la casa'] },
-  { code: 'CA-4216', guest: 'Tom y Erin Walsh',    roomId: 'r5', start: 5,  end: 12, status: 'llega-hoy',  n: 2, pkgs: ['Cena en el viñedo'] },
-  { code: 'CA-4388', guest: 'Pablo Quintana',      roomId: 'r1', start: 10, end: 13, status: 'confirmada', n: 1, pkgs: [] },
-  { code: 'CA-4402', guest: 'Alicia Montes',       roomId: 'r2', start: 12, end: 15, status: 'confirmada', n: 2, pkgs: ['Desayuno de la casa'] },
-  { code: 'CA-4451', guest: 'Familia Ortega',      roomId: 'r4', start: 18, end: 22, status: 'confirmada', n: 5, pkgs: ['Desayuno de la casa', 'Salida tardía'] },
-  { code: 'CA-4489', guest: 'Rocío Méndez',        roomId: 'r3', start: 21, end: 24, status: 'confirmada', n: 2, pkgs: ['Ritual de spa'] },
-  { code: 'CA-4513', guest: 'Daniel Kim',          roomId: 'r5', start: 25, end: 29, status: 'confirmada', n: 3, pkgs: [] },
-];
-
-export const AMEN_CATALOG = [
-  'Aire acondicionado', 'Wifi de cortesía', 'Terraza privada', 'Tina al aire libre',
-  'Chimenea de leña', 'Vista al valle', 'Alberca privada', 'Minibar curado',
-  'Cocina equipada', 'Acceso directo al jardín', 'Bata y pantuflas',
-  'Café de olla diario', 'Sala de estar', 'Escritorio',
-];
-
-export const DEF_STRUCT = {
-  mode: 'edificios',
-  flatCount: 24,
-  buildings: [
-    { id: 'b1', name: 'Edificio Valle',  start: 101, end: 150, letter: '',  letterPos: 'pre' },
-    { id: 'b2', name: 'Edificio Jardín', start: 201, end: 250, letter: '',  letterPos: 'pre' },
-    { id: 'b3', name: 'Edificio Viñedo', start: 1,   end: 50,  letter: 'C', letterPos: 'pre' },
-  ],
-};
-
 export const DEF_CONFIG = {
   name: 'Casa Almendra',
   tagline: 'Un refugio entre almendros y viñedos',
   accent: '#B8552F',
 };
-
-export const SWATCHES = [
-  ['#B8552F', 'Terracota'],
-  ['#6F7D5C', 'Salvia'],
-  ['#7A3B47', 'Vino'],
-  ['#34506B', 'Azul noche'],
-];
-
-export const GUEST_POOL = [
-  'Fernanda Ruiz', 'Marco A. Silva', 'Julia Béjar', 'Tom y Erin Walsh',
-  'Alicia Montes', 'Pablo Quintana', 'Rocío Méndez', 'Daniel Kim',
-  'Familia Ortega', 'Carmen Lozano',
-];
-
-export const TODAY_ISO = '2026-07-05';
-export const STAFF_NAME = 'Valeria';
 
 export const REVIEWS = [
   { text: 'Despertar con olor a pan recién horneado no tiene precio.', author: 'Mariana G. · CDMX' },

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import ImageSlot from '../../shared/ui/ImageSlot.jsx';
-import { SWATCHES } from '../../data/mockData.js';
+import { SWATCHES } from '../../shared/ui/swatches.js';
+import { useConfig } from '../../shared/hooks/useConfig.jsx';
+import { useBuildings } from '../../shared/hooks/useBuildings.jsx';
 
 const CARD = { background: '#FFFDF7', border: '1px solid #EDE3CF' };
 const INPUT = {
@@ -9,30 +11,52 @@ const INPUT = {
   fontSize: 14.5, color: '#2E2418', outline: 'none',
 };
 
-export default function Configuracion({ config, setConfig, structure, setStructure }) {
-  const [draft, setDraft] = useState(config);
-  const [toast, setToast] = useState(false);
+export default function Configuracion() {
+  const { config, loading: cfgLoading, error: cfgError, updateConfig } = useConfig();
+  const {
+    buildings, loading: bLoading, error: bError,
+    createBuilding, updateBuilding, deleteBuilding, saving,
+  } = useBuildings();
 
-  useEffect(() => { setDraft(config); }, [config]);
+  const [draft, setDraft] = useState(null);
+  const [toast, setToast] = useState(null);
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => { if (config) setDraft({ name: config.name, tagline: config.tagline, accent: config.accent }); }, [config]);
+
+  if (cfgLoading || !draft) return <div style={{ padding: 30 }}>Cargando configuración…</div>;
+  if (cfgError) return <div style={{ padding: 30, color: '#A8442C' }}>Error: {cfgError}</div>;
 
   const previewAccent = draft.accent;
+  const structIsEdif = (config?.structure_mode || 'edificios') === 'edificios';
+  const flatCount = config?.labels?.flat_count ?? 24;
 
-  const onSave = () => {
-    setConfig(draft);
-    setToast(true);
-    setTimeout(() => setToast(false), 2600);
+  const onSave = async () => {
+    setBusy(true);
+    try {
+      await updateConfig({ name: draft.name, tagline: draft.tagline, accent: draft.accent });
+      // Mirror a localStorage para que GuestApp (todavía en mock) siga viendo lo mismo
+      try {
+        localStorage.setItem('estancia-config', JSON.stringify({ name: draft.name, tagline: draft.tagline, accent: draft.accent }));
+      } catch { /* ignore */ }
+      setToast({ kind: 'ok', text: '✓ Guardado — la app del huésped ya lo refleja' });
+    } catch (e) {
+      setToast({ kind: 'err', text: 'No se pudo guardar: ' + (e.message || e) });
+    } finally {
+      setBusy(false);
+      setTimeout(() => setToast(null), 2600);
+    }
   };
+
+  const setMode = (mode) => updateConfig({ structure_mode: mode });
+  const setFlatCount = (n) => updateConfig({ labels: { ...(config?.labels || {}), flat_count: n } });
 
   const modeStyle = (on) => ({
     border: '1.5px solid ' + (on ? 'var(--ac, #B8552F)' : '#E4D8C0'),
     background: on ? '#F8EDE4' : '#FDFBF4',
   });
 
-  const structIsEdif = structure.mode === 'edificios';
   const applyLB = (b, n) => (b.letter ? (b.letterPos === 'suf' ? String(n) + b.letter : String(b.letter) + n) : String(n));
-
-  const upd = (bId, patch) =>
-    setStructure({ ...structure, buildings: structure.buildings.map((x) => (x.id === bId ? { ...x, ...patch } : x)) });
 
   return (
     <div style={{ padding: '30px 34px 44px', animation: 'fadeIn .35s ease both' }}>
@@ -48,11 +72,11 @@ export default function Configuracion({ config, setConfig, structure, setStructu
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4, color: '#8A7A63', marginBottom: 6 }}>NOMBRE DEL HOTEL</div>
-                <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} style={{ ...INPUT, fontWeight: 600 }} />
+                <input value={draft.name || ''} onChange={(e) => setDraft({ ...draft, name: e.target.value })} style={{ ...INPUT, fontWeight: 600 }} />
               </div>
               <div>
                 <div style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: 1.4, color: '#8A7A63', marginBottom: 6 }}>LEMA</div>
-                <input value={draft.tagline} onChange={(e) => setDraft({ ...draft, tagline: e.target.value })} style={INPUT} />
+                <input value={draft.tagline || ''} onChange={(e) => setDraft({ ...draft, tagline: e.target.value })} style={INPUT} />
               </div>
             </div>
           </div>
@@ -82,16 +106,16 @@ export default function Configuracion({ config, setConfig, structure, setStructu
           </div>
 
           <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginTop: 24, paddingTop: 18, borderTop: '1px dashed #E9DFCC' }}>
-            <button onClick={onSave} style={{
+            <button onClick={onSave} disabled={busy} style={{
               padding: '13px 24px', border: 'none', borderRadius: 12,
               background: 'var(--ac, #B8552F)', color: '#FBF6EA',
-              fontFamily: 'Karla, sans-serif', fontSize: 14, fontWeight: 700, cursor: 'pointer',
-              boxShadow: '0 8px 18px rgba(184,85,47,.28)',
-            }}>Guardar cambios</button>
+              fontFamily: 'Karla, sans-serif', fontSize: 14, fontWeight: 700, cursor: busy ? 'not-allowed' : 'pointer',
+              boxShadow: '0 8px 18px rgba(184,85,47,.28)', opacity: busy ? 0.7 : 1,
+            }}>{busy ? 'Guardando…' : 'Guardar cambios'}</button>
             <div style={{
-              fontSize: 12.5, color: '#6F7D5C', fontWeight: 700,
+              fontSize: 12.5, color: toast?.kind === 'err' ? '#A8442C' : '#6F7D5C', fontWeight: 700,
               opacity: toast ? 1 : 0, transition: 'opacity .3s ease',
-            }}>✓ Guardado — la app del huésped ya lo refleja</div>
+            }}>{toast?.text}</div>
           </div>
         </div>
 
@@ -137,7 +161,7 @@ export default function Configuracion({ config, setConfig, structure, setStructu
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 12, marginTop: 16, maxWidth: 640 }}>
-          <div onClick={() => setStructure({ ...structure, mode: 'edificios' })} style={{
+          <div onClick={() => setMode('edificios')} style={{
             ...modeStyle(structIsEdif), borderRadius: 15, padding: 15, cursor: 'pointer',
             transition: 'all .15s ease',
           }}>
@@ -150,7 +174,7 @@ export default function Configuracion({ config, setConfig, structure, setStructu
               Varios edificios o torres, cada uno con sus habitaciones.
             </div>
           </div>
-          <div onClick={() => setStructure({ ...structure, mode: 'plano' })} style={{
+          <div onClick={() => setMode('plano')} style={{
             ...modeStyle(!structIsEdif), borderRadius: 15, padding: 15, cursor: 'pointer',
             transition: 'all .15s ease',
           }}>
@@ -167,82 +191,88 @@ export default function Configuracion({ config, setConfig, structure, setStructu
           </div>
         </div>
 
+        {bError && <div style={{ marginTop: 12, padding: 10, background: '#F5E0DA', color: '#7A3B2A', borderRadius: 10, fontSize: 13 }}>{bError}</div>}
+
         {structIsEdif ? (
           <div style={{ marginTop: 16, maxWidth: 640 }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-              {structure.buildings.map((b) => {
-                const suf = b.letterPos === 'suf';
-                const segOn  = { background: '#2E2418', color: '#FBF6EA' };
-                const segOff = { background: '#FFFDF7', color: '#6B5D4A' };
-                return (
-                  <div key={b.id} style={{ border: '1px solid #EDE3CF', borderRadius: 14, padding: 12, background: '#FDFBF4' }}>
-                    <div style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
-                      <input value={b.name} onChange={(e) => upd(b.id, { name: e.target.value })} style={{
-                        flex: 1, minWidth: 0, padding: '10px 13px',
-                        border: '1px solid #E4D8C0', borderRadius: 11, background: '#FFFDF7',
-                        fontSize: 13.5, fontWeight: 600, outline: 'none',
-                      }} />
-                      <span style={{
-                        fontSize: 11.5, color: '#3F6E4C', fontWeight: 700, flex: 'none',
-                        background: '#EAF2E6', borderRadius: 999, padding: '6px 11px',
-                      }}>{applyLB(b, b.start)} – {applyLB(b, b.end)} · {b.end - b.start + 1} hab.</span>
-                      <button onClick={() => setStructure({ ...structure, buildings: structure.buildings.filter((x) => x.id !== b.id) })}
-                        style={{
-                          width: 34, height: 34, borderRadius: '50%',
-                          border: '1px solid #E3B8AC', background: 'transparent',
-                          color: '#A8442C', cursor: 'pointer', fontSize: 13, flex: 'none',
-                        }}>✕</button>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, color: '#8A7A63' }}>NUMERACIÓN</span>
-                      <span style={{ fontSize: 12, color: '#6B5D4A' }}>del</span>
-                      <input type="number" value={b.start} onChange={(e) => {
-                        const v = Math.max(1, Math.min(9998, Number(e.target.value) || 1));
-                        upd(b.id, { start: v, end: Math.min(Math.max(v, b.end), v + 399) });
-                      }} style={{
-                        width: 76, boxSizing: 'border-box', padding: '9px 11px',
-                        border: '1px solid #E4D8C0', borderRadius: 10, background: '#FFFDF7',
-                        fontSize: 13, outline: 'none',
-                      }} />
-                      <span style={{ fontSize: 12, color: '#6B5D4A' }}>al</span>
-                      <input type="number" value={b.end} onChange={(e) => {
-                        const v = Math.max(b.start, Math.min(b.start + 399, Number(e.target.value) || b.start));
-                        upd(b.id, { end: v });
-                      }} style={{
-                        width: 76, boxSizing: 'border-box', padding: '9px 11px',
-                        border: '1px solid #E4D8C0', borderRadius: 10, background: '#FFFDF7',
-                        fontSize: 13, outline: 'none',
-                      }} />
-                      <span style={{ width: 1, height: 22, background: '#E4D8C0', margin: '0 4px' }} />
-                      <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, color: '#8A7A63' }}>LETRA</span>
-                      <input value={b.letter || ''} onChange={(e) => upd(b.id, { letter: (e.target.value || '').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2) })}
-                        maxLength={2} placeholder="—" style={{
-                          width: 46, boxSizing: 'border-box', padding: '9px 6px',
-                          border: '1px solid #E4D8C0', borderRadius: 10, background: '#FFFDF7',
-                          fontSize: 13, fontWeight: 700, textAlign: 'center', outline: 'none',
+            {bLoading ? <div style={{ fontSize: 13, color: '#8A7A63' }}>Cargando edificios…</div> : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                {buildings.map((b) => {
+                  const suf = b.letterPos === 'suf';
+                  const segOn  = { background: '#2E2418', color: '#FBF6EA' };
+                  const segOff = { background: '#FFFDF7', color: '#6B5D4A' };
+                  return (
+                    <div key={b.id} style={{ border: '1px solid #EDE3CF', borderRadius: 14, padding: 12, background: '#FDFBF4' }}>
+                      <div style={{ display: 'flex', gap: 9, alignItems: 'center' }}>
+                        <input value={b.name} onChange={(e) => updateBuilding(b.id, { name: e.target.value })} style={{
+                          flex: 1, minWidth: 0, padding: '10px 13px',
+                          border: '1px solid #E4D8C0', borderRadius: 11, background: '#FFFDF7',
+                          fontSize: 13.5, fontWeight: 600, outline: 'none',
                         }} />
-                      <div style={{ display: 'flex', background: '#EDE4D1', borderRadius: 10, padding: 2, gap: 2 }}>
-                        <button onClick={() => upd(b.id, { letterPos: 'pre' })} title="Letra antes del número" style={{
-                          padding: '7px 12px', border: 'none', borderRadius: 8,
-                          ...(suf ? segOff : segOn),
-                          fontFamily: 'Karla, sans-serif', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                        }}>{(b.letter || 'A') + b.start}</button>
-                        <button onClick={() => upd(b.id, { letterPos: 'suf' })} title="Letra después del número" style={{
-                          padding: '7px 12px', border: 'none', borderRadius: 8,
-                          ...(suf ? segOn : segOff),
-                          fontFamily: 'Karla, sans-serif', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                        }}>{b.start + (b.letter || 'A')}</button>
+                        <span style={{
+                          fontSize: 11.5, color: '#3F6E4C', fontWeight: 700, flex: 'none',
+                          background: '#EAF2E6', borderRadius: 999, padding: '6px 11px',
+                        }}>{applyLB(b, b.start)} – {applyLB(b, b.end)} · {b.end - b.start + 1} hab.</span>
+                        <button onClick={() => deleteBuilding(b.id)}
+                          style={{
+                            width: 34, height: 34, borderRadius: '50%',
+                            border: '1px solid #E3B8AC', background: 'transparent',
+                            color: '#A8442C', cursor: 'pointer', fontSize: 13, flex: 'none',
+                          }}>✕</button>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 10, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, color: '#8A7A63' }}>NUMERACIÓN</span>
+                        <span style={{ fontSize: 12, color: '#6B5D4A' }}>del</span>
+                        <input type="number" value={b.start} onChange={(e) => {
+                          const v = Math.max(1, Math.min(9998, Number(e.target.value) || 1));
+                          updateBuilding(b.id, { start: v, end: Math.min(Math.max(v, b.end), v + 399) });
+                        }} style={{
+                          width: 76, boxSizing: 'border-box', padding: '9px 11px',
+                          border: '1px solid #E4D8C0', borderRadius: 10, background: '#FFFDF7',
+                          fontSize: 13, outline: 'none',
+                        }} />
+                        <span style={{ fontSize: 12, color: '#6B5D4A' }}>al</span>
+                        <input type="number" value={b.end} onChange={(e) => {
+                          const v = Math.max(b.start, Math.min(b.start + 399, Number(e.target.value) || b.start));
+                          updateBuilding(b.id, { end: v });
+                        }} style={{
+                          width: 76, boxSizing: 'border-box', padding: '9px 11px',
+                          border: '1px solid #E4D8C0', borderRadius: 10, background: '#FFFDF7',
+                          fontSize: 13, outline: 'none',
+                        }} />
+                        <span style={{ width: 1, height: 22, background: '#E4D8C0', margin: '0 4px' }} />
+                        <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: 1.2, color: '#8A7A63' }}>LETRA</span>
+                        <input value={b.letter || ''} onChange={(e) => updateBuilding(b.id, { letter: (e.target.value || '').replace(/[^a-zA-Z]/g, '').toUpperCase().slice(0, 2), letterPos: b.letterPos })}
+                          maxLength={2} placeholder="—" style={{
+                            width: 46, boxSizing: 'border-box', padding: '9px 6px',
+                            border: '1px solid #E4D8C0', borderRadius: 10, background: '#FFFDF7',
+                            fontSize: 13, fontWeight: 700, textAlign: 'center', outline: 'none',
+                          }} />
+                        <div style={{ display: 'flex', background: '#EDE4D1', borderRadius: 10, padding: 2, gap: 2 }}>
+                          <button onClick={() => updateBuilding(b.id, { letter: b.letter, letterPos: 'pre' })} title="Letra antes del número" style={{
+                            padding: '7px 12px', border: 'none', borderRadius: 8,
+                            ...(suf ? segOff : segOn),
+                            fontFamily: 'Karla, sans-serif', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                          }}>{(b.letter || 'A') + b.start}</button>
+                          <button onClick={() => updateBuilding(b.id, { letter: b.letter, letterPos: 'suf' })} title="Letra después del número" style={{
+                            padding: '7px 12px', border: 'none', borderRadius: 8,
+                            ...(suf ? segOn : segOff),
+                            fontFamily: 'Karla, sans-serif', fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                          }}>{b.start + (b.letter || 'A')}</button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
             <button
-              onClick={() => setStructure({
-                ...structure,
-                buildings: [...structure.buildings, { id: 'b' + Date.now(), name: 'Edificio ' + (structure.buildings.length + 1), start: 101, end: 130, letter: '', letterPos: 'pre' }],
+              onClick={() => createBuilding({
+                name: 'Edificio ' + (buildings.length + 1),
+                start: 101, end: 130, letter: '', letterPos: 'pre',
+                position: buildings.length,
               })}
+              disabled={saving}
               style={{
                 marginTop: 11, padding: '10px 16px',
                 border: '1.5px dashed #C9B788', borderRadius: 11,
@@ -255,8 +285,8 @@ export default function Configuracion({ config, setConfig, structure, setStructu
           </div>
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 16 }}>
-            <input type="number" value={structure.flatCount}
-              onChange={(e) => setStructure({ ...structure, flatCount: Math.max(1, Math.min(400, Number(e.target.value) || 1)) })}
+            <input type="number" value={flatCount}
+              onChange={(e) => setFlatCount(Math.max(1, Math.min(400, Number(e.target.value) || 1)))}
               style={{
                 width: 110, boxSizing: 'border-box', padding: '11px 13px',
                 border: '1px solid #E4D8C0', borderRadius: 11, background: '#FDFBF4',

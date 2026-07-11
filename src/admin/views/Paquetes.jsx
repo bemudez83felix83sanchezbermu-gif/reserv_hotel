@@ -1,9 +1,6 @@
 import { fmt } from '../../shared/utils/helpers.js';
 
-export default function Paquetes({ pkgs, setPkgs, onEdit, onNew }) {
-  const toggleActive = (id) =>
-    setPkgs(pkgs.map((p) => (p.id === id ? { ...p, active: p.active === false } : p)));
-
+export default function Paquetes({ pkgs, loading, error, onToggle, onEdit, onNew }) {
   return (
     <div style={{ padding: '30px 34px 44px', animation: 'fadeIn .35s ease both' }}>
       <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
@@ -25,6 +22,9 @@ export default function Paquetes({ pkgs, setPkgs, onEdit, onNew }) {
           onMouseLeave={(e) => e.currentTarget.style.filter = ''}
         >+ Nuevo paquete</button>
       </div>
+
+      {error && <div style={{ marginTop: 16, padding: 12, background: '#F5E0DA', color: '#7A3B2A', borderRadius: 12, fontSize: 13.5 }}>{error}</div>}
+      {loading && !pkgs.length && <div style={{ marginTop: 24, fontSize: 13.5, color: '#8A7A63' }}>Cargando paquetes…</div>}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(340px, 1fr))', gap: 16, marginTop: 20 }}>
         {pkgs.map((p, i) => {
@@ -62,7 +62,7 @@ export default function Paquetes({ pkgs, setPkgs, onEdit, onNew }) {
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 marginTop: 14, paddingTop: 13, borderTop: '1px dashed #E9DFCC',
               }}>
-                <div onClick={() => toggleActive(p.id)} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                <div onClick={() => onToggle(p.id, !active)} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
                   <div style={{
                     width: 38, height: 21, borderRadius: 99,
                     background: active ? '#6F7D5C' : '#D8CCB2',
